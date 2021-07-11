@@ -2,16 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\GJUser;
+use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(['gj.auth']);
-        $this->middleware(['gj.superadmin'])->except('show');
-    }
     /**
      * Display a listing of the resource.
      *
@@ -19,8 +17,9 @@ class UserController extends Controller
      */
     public function index()
     {
-        $users = GJUser::withTrashed()->get();
-        return view('user.index')->with('users', $users);
+        return view('users.index', [
+            'users' => User::orderBy('name')->paginate(10)
+        ]);
     }
 
     /**
@@ -30,7 +29,9 @@ class UserController extends Controller
      */
     public function create()
     {
-        //
+        return view('users.create', [
+            'roles' => Role::all(),
+        ]);
     }
 
     /**
@@ -41,7 +42,21 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validatedData = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+        $data = [
+            'name' => $validatedData['name'],
+            'email' => $validatedData['email'],
+            'password' => Hash::make($validatedData['password']),
+        ];
+
+        $user = User::create($data);
+        $user->syncRoles(request('roles'));
+
+        return redirect(route('users.index'));
     }
 
     /**
@@ -50,11 +65,12 @@ class UserController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show($gjid)
+    public function show(User $user)
     {
-        $user = GJUser::where('gjid', $gjid)->first();
-        abort_unless($user, 404);
-        return view('user.show')->with('user', $user);
+        return view('users.show', [
+            'menu' => $menu,
+            'users' => $menu->users
+        ]);
     }
 
     /**
@@ -63,11 +79,13 @@ class UserController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function edit($gjid)
+    public function edit(User $user)
     {
-        $user = GJUser::withTrashed()->where('gjid', $gjid)->first();
-        abort_unless($user, 404);
-        return view('user.edit')->with('user', $user);
+        return view('users.edit', [
+            'user' => $user,
+            'roles' => Role::all(),
+            'custom_fields' => config('custom_fields')
+        ]);
     }
 
     /**
@@ -77,16 +95,30 @@ class UserController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $gjid)
+    public function update(Request $request, User $user)
     {
-        $request->validate([
-            'is_admin' => ['required', 'boolean']
-        ]);
-        $user = GJUser::withTrashed()->where('gjid', $gjid)->first();
-        abort_unless($user, 404);
-        $user->is_admin = $request->is_admin;
-        $user->save();
-        return redirect()->route('users')->with('success', 'User saved.');
+        $rules = [];
+
+        if ($request->has('name')) {
+            $rules['name'] = ['required', 'string', 'max:255'];
+        }
+
+        if ($request->has('email')) {
+            $rules['email'] = ['required', 'string', 'email', 'max:255', 'unique:users,email,'.$user->id];
+        }
+
+        if ($request->filled('password')) {
+            $rules['password'] = ['sometimes', 'required', 'string', 'min:8', 'confirmed'];
+        }
+
+        $validatedData = $request->validate($rules);
+        if ($request->filled('password')) {
+            $validatedData['password'] = Hash::make($validatedData['password']);
+        }
+
+        $user->update($validatedData);
+        $user->syncRoles(request('roles'));
+        return redirect()->route('users.index');
     }
 
     /**
@@ -95,8 +127,9 @@ class UserController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroy(User $user)
     {
-        //
+        $user->delete();
+        return redirect()->route('users.index');
     }
 }

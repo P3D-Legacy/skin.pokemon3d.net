@@ -2,6 +2,7 @@
 
 <p align="center">
 <img src="https://github.com/P3D-Legacy/pokemon3d.net/workflows/Laravel/badge.svg" alt="Test Status">
+<img src="https://codecov.io/gh/P3D-Legacy/pokemon3d.net/branch/main/graph/badge.svg?token=3OL5P8NPY3" alt="Code Coverage">
 <img src="https://img.shields.io/github/license/P3D-Legacy/pokemon3d.net" alt="License">
 <img src="https://img.shields.io/github/contributors/P3D-Legacy/pokemon3d.net" alt="Contributors">
 <img src="https://img.shields.io/github/v/tag/P3D-Legacy/pokemon3d.net" alt="Tag">
